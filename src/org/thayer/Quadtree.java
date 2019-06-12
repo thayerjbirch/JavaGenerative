@@ -1,25 +1,32 @@
 package org.thayer;
 
 import java.awt.*;
+import java.awt.geom.Area;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
-import java.util.List;
 
-public class Quadtree {
+public class QuadTree {
     private int MAX_OBJECTS = 10;
-    private int MAX_LEVELS = 5;
+    private int MAX_LEVELS = 25;
 
     private int level;
-    private List objects;
+    private ArrayList<Shape> objects;
     private Rectangle bounds;
-    private Quadtree[] nodes;
+    private QuadTree[] nodes;
 
-    public Quadtree(int pLevel, Rectangle pBounds) {
+    /*
+     * Constructor
+     */
+    public QuadTree(int pLevel, Rectangle pBounds) {
         level = pLevel;
         objects = new ArrayList();
         bounds = pBounds;
-        nodes = new Quadtree[4];
+        nodes = new QuadTree[4];
     }
 
+    /*
+     * Clears the quadtree
+     */
     public void clear() {
         objects.clear();
 
@@ -31,30 +38,42 @@ public class Quadtree {
         }
     }
 
+    /*
+     * Splits the node into 4 subnodes
+     */
     private void split() {
         int subWidth = (int)(bounds.getWidth() / 2);
         int subHeight = (int)(bounds.getHeight() / 2);
         int x = (int)bounds.getX();
         int y = (int)bounds.getY();
 
-        nodes[0] = new Quadtree(level+1, new Rectangle(x + subWidth, y, subWidth, subHeight));
-        nodes[1] = new Quadtree(level+1, new Rectangle(x, y, subWidth, subHeight));
-        nodes[2] = new Quadtree(level+1, new Rectangle(x, y + subHeight, subWidth, subHeight));
-        nodes[3] = new Quadtree(level+1, new Rectangle(x + subWidth, y + subHeight, subWidth, subHeight));
+        nodes[0] = new QuadTree(level+1, new Rectangle(x + subWidth, y, subWidth, subHeight));
+        nodes[1] = new QuadTree(level+1, new Rectangle(x, y, subWidth, subHeight));
+        nodes[2] = new QuadTree(level+1, new Rectangle(x, y + subHeight, subWidth, subHeight));
+        nodes[3] = new QuadTree(level+1, new Rectangle(x + subWidth, y + subHeight, subWidth, subHeight));
     }
 
-    private int getIndex(Rectangle pRect) {
+    /*
+     * Determine which node the object belongs to. -1 means
+     * object cannot completely fit within a child node and is part
+     * of the parent node
+     */
+    private int getIndex(Shape shape) {
         int index = -1;
         double verticalMidpoint = bounds.getX() + (bounds.getWidth() / 2);
         double horizontalMidpoint = bounds.getY() + (bounds.getHeight() / 2);
 
         // Object can completely fit within the top quadrants
-        boolean topQuadrant = (pRect.getY() < horizontalMidpoint && pRect.getY() + pRect.getHeight() < horizontalMidpoint);
+        boolean topQuadrant = (shape.getBounds().getY() < horizontalMidpoint
+                && shape.getBounds().getY() + shape.getBounds().getHeight()
+                < horizontalMidpoint);
         // Object can completely fit within the bottom quadrants
-        boolean bottomQuadrant = (pRect.getY() > horizontalMidpoint);
+        boolean bottomQuadrant = (shape.getBounds().getY() > horizontalMidpoint);
 
         // Object can completely fit within the left quadrants
-        if (pRect.getX() < verticalMidpoint && pRect.getX() + pRect.getWidth() < verticalMidpoint) {
+        if (shape.getBounds().getX() < verticalMidpoint
+                && shape.getBounds().getX() + shape.getBounds().getWidth()
+                < verticalMidpoint) {
             if (topQuadrant) {
                 index = 1;
             }
@@ -63,7 +82,7 @@ public class Quadtree {
             }
         }
         // Object can completely fit within the right quadrants
-        else if (pRect.getX() > verticalMidpoint) {
+        else if (shape.getBounds().getX() > verticalMidpoint) {
             if (topQuadrant) {
                 index = 0;
             }
@@ -80,18 +99,18 @@ public class Quadtree {
      * exceeds the capacity, it will split and add all
      * objects to their corresponding nodes.
      */
-    public void insert(Rectangle pRect) {
+    public void insert(Shape shape) {
         if (nodes[0] != null) {
-            int index = getIndex(pRect);
+            int index = getIndex(shape);
 
             if (index != -1) {
-                nodes[index].insert(pRect);
+                nodes[index].insert(shape);
 
                 return;
             }
         }
 
-        objects.add(pRect);
+        objects.add(shape);
 
         if (objects.size() > MAX_OBJECTS && level < MAX_LEVELS) {
             if (nodes[0] == null) {
@@ -100,9 +119,9 @@ public class Quadtree {
 
             int i = 0;
             while (i < objects.size()) {
-                int index = getIndex((Rectangle) objects.get(i));
+                int index = getIndex(objects.get(i));
                 if (index != -1) {
-                    nodes[index].insert((Rectangle) objects.remove(i));
+                    nodes[index].insert(objects.remove(i));
                 }
                 else {
                     i++;
@@ -114,14 +133,26 @@ public class Quadtree {
     /*
      * Return all objects that could collide with the given object
      */
-    public List retrieve(List returnObjects, Rectangle pRect) {
-        int index = getIndex(pRect);
+    public ArrayList<Shape> retrieve(ArrayList<Shape> returnObjects, Shape shape) {
+        int index = getIndex(shape);
         if (index != -1 && nodes[0] != null) {
-            nodes[index].retrieve(returnObjects, pRect);
+            nodes[index].retrieve(returnObjects, shape);
         }
 
         returnObjects.addAll(objects);
 
         return returnObjects;
+    }
+
+    public boolean collides(Shape shape){
+        ArrayList<Shape> potentialCollisions = new ArrayList<>();
+        for (Shape s : retrieve(potentialCollisions, shape)){
+            Area areaA = new Area(shape);
+            areaA.intersect(new Area(s));
+            if(!areaA.isEmpty()){
+                return true;
+            }
+        }
+        return false;
     }
 }

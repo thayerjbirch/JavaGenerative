@@ -6,11 +6,15 @@ import org.thayer.Routines.WIP;
 import java.io.File;
 import java.io.IOException;
 
+
 public class Main {
+    public static final int WIDTH = 12000;
+    public static final int HEIGHT = 8000;
+
     static public void main(String args[]) throws Exception {
         try {
-            for (int i = 0; i < 25; i++) {
-                Canvas canvas = new Canvas(12000, 8000);
+            for (int i = 0; i < 2; i++) {
+                Canvas canvas = new Canvas(WIDTH, HEIGHT);
                 //VectorFieldTraces.spiralWork(canvas);
                 WIP.circlesWIP(canvas);
 
